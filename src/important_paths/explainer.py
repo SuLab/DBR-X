@@ -19,13 +19,16 @@ class MaskExplainer:
         self.args = args
         self.dist_fn = L2Dist
         self.mrn_nodes = None  # To be set by data_loader
-
-    def explain(self, drug_id, dis_id, data_loader):
+        
+        self.dist_fn = self.dist_fn("mean", "mean")
+    
+    
+    def explain(self, drug_id, dis_id, data_loader, validation = False, split = "train" ):
         self.mrn_nodes = pd.DataFrame(data_loader.node_labels.items(), columns=['id', 'label'])  # Mock mrn_nodes
         self.nodes_mapping = data_loader.nodes_mapping
 
         self.nodes_mapping_inv = data_loader.nodes_mapping_inv
-        split = "train"
+
         
         
         # Initialize neighbors
@@ -43,7 +46,7 @@ class MaskExplainer:
         
         global_idx_map = self.nodes_mapping[disease_label][0][dis_id]  #global index
         local_idx_map = np.where(nn_graph[0].nodes[disease_label][0]["_ID"] == global_idx_map)#convert to local
-        pred = self.model_cbr_dists(nn_graph, nn_idx, local_idx_map, disease_label, self.device)
+        dist_pred, pred = self.model_cbr_dists(nn_graph, nn_idx, local_idx_map, disease_label, self.device)
         ml_edge_mask_dict = self.get_edge_mask_dict(nn_graph[0].to(self.device))
         optimizer = torch.optim.Adam(ml_edge_mask_dict.values(), lr=self.args.lr_, weight_decay=0)
         
@@ -97,6 +100,10 @@ class MaskExplainer:
 
 
             #Distance between query node subgraph and KNN answer nodes
+            #Distance between query node subgraph and KNN answer nodes
+            query_rep = query_rep.to(self.device)
+            knn_all_rep = knn_all_rep.to(self.device)
+            label_identifier = label_identifier.to(self.device)
             dists = self.dist_fn(query_rep, 
                 knn_all_rep[knn_all_true_false.long()], 
                 target_identifiers=label_identifier) 
@@ -152,13 +159,15 @@ class MaskExplainer:
                 path_id.append((src_id, rel, tgt_id))
             all_paths_id.append(path_id)
         
-        return all_paths_id
+        if validation == True: 
+            return pred, ml_ghomo, ml_eweight_dict, ml_ghomo_eweights, ntype_hetero_nids_to_homo_nids, nn_graph, nn_idx, all_paths_id
+        else:
+            return all_paths_id
     
     
     def cbr_format(self, drug_id, split, data_loader, neighbors):
 
         predictions = defaultdict(list)
-        edge_type = ('ChemicalSubstance', 'indication', 'Disease')
         results = {}
         
         # Select the correct dataset based on the split
@@ -239,6 +248,10 @@ class MaskExplainer:
 
 
         #Distance between query node subgraph and KNN answer nodes
+        query_rep = query_rep.to(self.device)
+        knn_all_rep = knn_all_rep.to(self.device)
+        label_identifier = label_identifier.to(self.device)
+
         dists_pred = self.dist_fn(query_rep, 
             knn_all_rep[knn_all_true_false.long()], 
             target_identifiers=label_identifier) 
@@ -246,7 +259,7 @@ class MaskExplainer:
 
         pred_int = query_rep[local_idx_map]
 
-        return pred_int
+        return dists_pred, pred_int
     
     def concat_rep(self, model_rep, ans_idx, tgt_ans):
 
@@ -563,7 +576,7 @@ class MaskExplainer:
                   tgt_ntype,
                   ghetero,
                   edge_mask_dict,
-                  num_paths=10, 
+                  num_paths=200, 
                   max_path_length=3):
 
         """A postprocessing step that turns the `edge_mask_dict` into actual paths.
