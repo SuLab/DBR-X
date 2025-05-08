@@ -5,6 +5,10 @@ DBR-X addresses this challenge by integrating: <br>
 ✅ A link prediction module to identify potential drug-disease relationships.<br>
 ✅ A path-identification module to provide interpretable explanations
 
+## Download MIND Dataset
+- MechRepoNet with DrugCentral Indications Knowledge Graph and Train/Test/Dev data can de dowloaded from here: [here](https://www.dropbox.com/scl/fo/53x3iul9kh1ndhpky4s52/h?rlkey=0by2m3yo4bryabvbtzp6wn7kf&dl=0)
+- You can download our collected train/test/dev subgraphs here: [here](https://www.dropbox.com/scl/fo/53x3iul9kh1ndhpky4s52/h?rlkey=0by2m3yo4bryabvbtzp6wn7kf&dl=0)
+  
 ## 📌 Collecting Your Own Subgraphs
 Run your own subgraph collection procedure using the following steps:
 
